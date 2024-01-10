@@ -13,7 +13,29 @@ fn build_harfbuzz() {
 
     let target = env::var("TARGET").unwrap();
 
+    // for the Rust esp32 IDF configuration, we need to specify the target compilers
+    if target == "xtensa-esp32-espidf" {
+        env::set_var("CXX", "xtensa-esp32-elf-g++");
+        env::set_var("CC", "xtensa-esp32-elf-gcc");
+        env::set_var("CFLAGS", "-mlongcalls");
+        env::set_var("CXXFLAGS", "-mlongcalls");
+    } else if target == "xtensa-esp32s3-espidf" {
+        env::set_var("CXX", "xtensa-esp32s3-elf-g++");
+        env::set_var("CC", "xtensa-esp32s3-elf-gcc");
+        env::set_var("AR", "xtensa-esp32s3-elf-ar");
+        env::set_var("CFLAGS", "-mlongcalls -ffunction-sections -fdata-sections");
+        env::set_var(
+            "CXXFLAGS",
+            "-mlongcalls -Wno-frame-address -ffunction-sections -fdata-sections",
+        );
+    }
+
     let mut cfg = cc::Build::new();
+    if !target.contains("xtensa") && cfg!(feature = "freetype") {
+        pkg_config::probe_library("freetype2").unwrap();
+        cfg.define("HAVE_FREETYPE", "1");
+        cfg.flag("-I/usr/include/freetype2");
+    }
     cfg.cpp(true)
         .flag_if_supported("-std=c++11") // for unix
         .warnings(false)
